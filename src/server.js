@@ -20,7 +20,7 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080 } = {}) {
     async fetch(req) {
       const url = new URL(req.url);
       
-      if (url.pathname === "/" || url.pathname === "/demo") {
+      if (url.pathname === "/demo") {
         const demoHtml = readFileSync(join(__dirname, "demo.html"), "utf-8");
         return new Response(demoHtml, {
           headers: { "Content-Type": "text/html" },
@@ -81,9 +81,7 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080 } = {}) {
     httpServer: server,
     wsServer: wss,
     stop: () => {
-      if (typeof server.stop === 'function') {
-        server.stop();
-      }
+      server.stop();
       wss.close();
       clients.clear();
     }

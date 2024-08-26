@@ -1,49 +1,67 @@
-export class BunInBrowser {
-  constructor(wsUrl) {
-    this.ws = new WebSocket(wsUrl);
-    this.serverModule = null;
+import WebSocket from "ws";
+import debug from "debug";
 
-    this.ws.onmessage = async (event) => {
-      const request = JSON.parse(event.data);
+const log = debug('bun-in-browser:client');
+
+export class BunInBrowser {
+  constructor(wsUrl, serverModule) {
+    this.ws = new WebSocket(wsUrl);
+    this.serverModule = serverModule;
+    this.setupWebSocketListeners();
+    this.setupMessageHandler();
+  }
+
+  setupWebSocketListeners() {
+    this.ws.on('open', () => log('WebSocket connection opened'));
+    this.ws.on('close', () => log('WebSocket connection closed'));
+    this.ws.on('error', (error) => log('WebSocket error:', error));
+  }
+
+  setupMessageHandler() {
+    this.ws.on('message', async (data) => {
+      const request = JSON.parse(data.toString());
+      log('Received request:', request);
+
       if (!this.serverModule) {
-        this.ws.send(JSON.stringify({
+        this.sendResponse({
           status: 503,
-          body: 'Server not ready',
-        }));
+          headers: { "Content-Type": "text/plain" },
+          body: "Server not ready",
+        });
         return;
       }
 
-      const bunRequest = new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-      });
-
       try {
+        const bunRequest = new Request(`http://localhost${request.url}`, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body,
+        });
+
         const response = await this.serverModule.fetch(bunRequest);
         const responseBody = await response.text();
-        this.ws.send(JSON.stringify({
+        this.sendResponse({
           status: response.status,
           headers: Object.fromEntries(response.headers.entries()),
           body: responseBody,
-        }));
+        });
       } catch (error) {
-        this.ws.send(JSON.stringify({
+        log(`Error handling request: ${error.message}`);
+        this.sendResponse({
           status: 500,
+          headers: { "Content-Type": "text/plain" },
           body: `Error: ${error.message}`,
-        }));
+        });
       }
-    };
+    });
   }
 
-  async start(code) {
-    try {
-      const module = await import(`data:text/javascript,${encodeURIComponent(code)}`);
-      this.serverModule = module.default;
-      console.log('Server started successfully!');
-      console.log(`Listening on port ${this.serverModule.port}`);
-    } catch (error) {
-      console.error(`Error starting server: ${error.message}`);
-    }
+  sendResponse(response) {
+    log('Sending response:', response);
+    this.ws.send(JSON.stringify(response));
+  }
+
+  close() {
+    this.ws.close();
   }
 }
