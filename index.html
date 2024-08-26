@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bun.js in Browser Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        #editor, #output {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        #output {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bun.js in Browser Demo</h1>
+    <textarea id="editor">
+// Example Bun.js server code
+export default {
+  port: 3000,
+  fetch(req) {
+    const url = new URL(req.url);
+    if (url.pathname === "/") {
+      return new Response("Hello from Bun.js in the browser!");
+    }
+    if (url.pathname === "/json") {
+      return Response.json({ message: "This is JSON data" });
+    }
+    return new Response("Not Found", { status: 404 });
+  },
+};
+    </textarea>
+    <button onclick="runCode()">Run Code</button>
+    <div id="output"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        let serverModule;
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket server');
+        };
+
+        ws.onmessage = async (event) => {
+            const request = JSON.parse(event.data);
+            if (!serverModule) {
+                ws.send(JSON.stringify({
+                    status: 503,
+                    body: 'Server not ready',
+                }));
+                return;
+            }
+
+            const bunRequest = new Request(request.url, {
+                method: request.method,
+                headers: request.headers,
+                body: request.body,
+            });
+
+            try {
+                const response = await serverModule.fetch(bunRequest);
+                const responseBody = await response.text();
+                ws.send(JSON.stringify({
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    body: responseBody,
+                }));
+            } catch (error) {
+                ws.send(JSON.stringify({
+                    status: 500,
+                    body: `Error: ${error.message}`,
+                }));
+            }
+        };
+
+        async function runCode() {
+            const code = document.getElementById('editor').value;
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+
+            try {
+                const module = await import(`data:text/javascript,${encodeURIComponent(code)}`);
+                serverModule = module.default;
+                output.innerHTML += 'Server started successfully!\n';
+                output.innerHTML += `Listening on port ${serverModule.port}\n`;
+                output.innerHTML += 'Try making requests to http://localhost:3000\n';
+            } catch (error) {
+                output.innerHTML += `Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>
