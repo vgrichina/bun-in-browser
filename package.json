@@ -1,0 +1,24 @@
+{
+  "name": "bun-in-browser",
+  "version": "1.0.0",
+  "description": "Run Bun.js-style servers in the browser with a WebSocket-based reverse proxy",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/server.js",
+    "test": "bun test"
+  },
+  "keywords": ["bun", "browser", "server", "websocket", "reverse-proxy"],
+  "author": "Vlad Grichina",
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^4.3.6",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.3"
+  },
+  "peerDependencies": {
+    "bun": "^1.0.0"
+  }
+}

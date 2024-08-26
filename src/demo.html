@@ -58,56 +58,19 @@ export default {
     <button onclick="runCode()">Run Code</button>
     <div id="output"></div>
 
-    <script>
-        const ws = new WebSocket('ws://localhost:8080');
-        let serverModule;
+    <script type="module">
+        import { BunInBrowser } from './client.js';
 
-        ws.onopen = () => {
-            console.log('Connected to WebSocket server');
-        };
-
-        ws.onmessage = async (event) => {
-            const request = JSON.parse(event.data);
-            if (!serverModule) {
-                ws.send(JSON.stringify({
-                    status: 503,
-                    body: 'Server not ready',
-                }));
-                return;
-            }
-
-            const bunRequest = new Request(request.url, {
-                method: request.method,
-                headers: request.headers,
-                body: request.body,
-            });
-
-            try {
-                const response = await serverModule.fetch(bunRequest);
-                const responseBody = await response.text();
-                ws.send(JSON.stringify({
-                    status: response.status,
-                    headers: Object.fromEntries(response.headers.entries()),
-                    body: responseBody,
-                }));
-            } catch (error) {
-                ws.send(JSON.stringify({
-                    status: 500,
-                    body: `Error: ${error.message}`,
-                }));
-            }
-        };
-
-        async function runCode() {
+        const bunInBrowser = new BunInBrowser('ws://localhost:8080');
+        window.runCode = async function() {
             const code = document.getElementById('editor').value;
             const output = document.getElementById('output');
             output.innerHTML = '';
 
             try {
-                const module = await import(`data:text/javascript,${encodeURIComponent(code)}`);
-                serverModule = module.default;
+                await bunInBrowser.start(code);
                 output.innerHTML += 'Server started successfully!\n';
-                output.innerHTML += `Listening on port ${serverModule.port}\n`;
+                output.innerHTML += `Listening on port ${bunInBrowser.serverModule.port}\n`;
                 output.innerHTML += 'Try making requests to http://localhost:3000\n';
             } catch (error) {
                 output.innerHTML += `Error: ${error.message}\n`;
