@@ -54,7 +54,9 @@ describe("BunInBrowser", () => {
     bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
     
     log('Waiting for WebSocket connection to be established');
-    await new Promise(resolve => bunInBrowser.ws.on('open', resolve));
+    await new Promise(resolve => {
+      bunInBrowser.ws.addEventListener('open', resolve, { once: true });
+    });
     
     log('BunInBrowser instance ready');
     await delay(100);
@@ -143,7 +145,9 @@ describe("BunInBrowser", () => {
     bunInBrowser.close();
     await delay(100);
     bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
-    await new Promise(resolve => bunInBrowser.ws.on('open', resolve));
+    await new Promise(resolve => {
+      bunInBrowser.ws.addEventListener('open', resolve, { once: true });
+    });
     const response = await fetch(`http://localhost:${HTTP_PORT}/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("Hello from Bun.js in the browser!");

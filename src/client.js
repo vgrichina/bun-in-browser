@@ -1,10 +1,10 @@
-import WebSocket from "ws";
 import debug from "debug";
 
 const log = debug('bun-in-browser:client');
 
 export class BunInBrowser {
   constructor(wsUrl, serverModule) {
+    // Use native WebSocket
     this.ws = new WebSocket(wsUrl);
     this.serverModule = serverModule;
     this.setupWebSocketListeners();
@@ -12,14 +12,16 @@ export class BunInBrowser {
   }
 
   setupWebSocketListeners() {
-    this.ws.on('open', () => log('WebSocket connection opened'));
-    this.ws.on('close', () => log('WebSocket connection closed'));
-    this.ws.on('error', (error) => log('WebSocket error:', error));
+    // Use addEventListener instead of .on
+    this.ws.addEventListener('open', () => log('WebSocket connection opened'));
+    this.ws.addEventListener('close', () => log('WebSocket connection closed'));
+    this.ws.addEventListener('error', (error) => log('WebSocket error:', error));
   }
 
   setupMessageHandler() {
-    this.ws.on('message', async (data) => {
-      const request = JSON.parse(data.toString());
+    // Use addEventListener and handle MessageEvent
+    this.ws.addEventListener('message', async (event) => {
+      const request = JSON.parse(event.data);
       log('Received request:', request);
 
       if (!this.serverModule) {
