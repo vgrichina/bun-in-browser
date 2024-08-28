@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bun.js in Browser Demo</title>
+    <script type="importmap">
+    {
+      "imports": {
+        "debug": "https://cdn.skypack.dev/debug"
+      }
+    }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,8 +53,7 @@
     <h1>Bun.js in Browser Demo</h1>
     <input type="text" id="wsUrl" value="ws://localhost:8080" placeholder="WebSocket URL">
     <textarea id="editor">
-// Example Bun.js server code
-export default {
+({
   port: 3000,
   fetch(req) {
     const url = new URL(req.url);
@@ -59,7 +65,7 @@ export default {
     }
     return new Response("Not Found", { status: 404 });
   },
-};
+})
     </textarea>
     <button onclick="runCode()">Run Code</button>
     <div id="output"></div>
@@ -76,17 +82,24 @@ export default {
             output.innerHTML = '';
 
             try {
-                if (!bunInBrowser || bunInBrowser.ws.url !== wsUrl) {
-                    bunInBrowser = new BunInBrowser(wsUrl);
-                }
+                // Evaluate the code to get the serverModule
+                const serverModule = eval(code);
 
-                await bunInBrowser.start(code);
-                output.innerHTML += `Listening on port ${bunInBrowser.serverModule.port}\n`;
-                output.innerHTML += 'Try making requests to http://localhost:3000\n';
+                // Create a new BunInBrowser instance with the serverModule
+                bunInBrowser = new BunInBrowser(wsUrl, serverModule);
+
+                console.log(`Server started`);
+                output.innerHTML += `Server started<br>`;
+                if (serverModule && serverModule.port) {
+                    console.log(`Listening on port ${serverModule.port}`);
+                    output.innerHTML += `Listening on port ${serverModule.port}<br>`;
+                }
+                output.innerHTML += 'Try making requests to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a><br>';
             } catch (error) {
-                output.innerHTML += `Error: ${error.message}\n`;
+                console.error(`Error: ${error.message}`);
+                output.innerHTML += `Error: ${error.message}<br>`;
                 if (error.message.includes('WebSocket connection failed')) {
-                    output.innerHTML += 'Make sure the WebSocket server is running and the URL is correct.\n';
+                    output.innerHTML += 'Make sure the WebSocket server is running and the URL is correct.<br>';
                 }
             }
         }
