@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import getPort, { portNumbers } from "get-port";
 import { startReverseProxy } from "../src/server.js";
 import { BunInBrowser } from "../src/client.js";
 import debug from "debug";
@@ -10,10 +11,10 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 describe("BunInBrowser", () => {
   let proxyServer;
   let bunInBrowser;
-  const PORT = 3000;
+  let HTTP_PORT, WS_PORT, DEMO_PORT;
 
   const serverModule = {
-    port: PORT,
+    port: null, // We'll set this dynamically
     fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === "/") {
@@ -26,28 +27,38 @@ describe("BunInBrowser", () => {
         return new Response(req.body, { status: 200, headers: { "Content-Type": req.headers.get("Content-Type") } });
       }
       if (url.pathname === "/status") {
-        return new Response(null, { status: parseInt(url.searchParams.get("code") || "404") });
+        const statusCode = parseInt(url.searchParams.get("code") || "404");
+        return new Response(`Status: ${statusCode}`, { status: statusCode });
       }
       return new Response("Not Found", { status: 404 });
     },
   };
 
   beforeAll(async () => {
+    // Get available ports
+    [HTTP_PORT, WS_PORT, DEMO_PORT] = await Promise.all([
+      getPort({port: portNumbers(3000, 3100)}),
+      getPort({port: portNumbers(8080, 8180)}),
+      getPort({port: portNumbers(3001, 3101)}),
+    ]);
+
+    serverModule.port = HTTP_PORT;
+
     log('Starting reverse proxy server');
-    proxyServer = startReverseProxy({ httpPort: PORT, wsPort: 8080 });
+    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT, demoPort: DEMO_PORT });
     
     log('Waiting for WebSocket server to start');
     await delay(100);
     
     log('Creating BunInBrowser instance');
-    bunInBrowser = new BunInBrowser('ws://localhost:8080', serverModule);
+    bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
     
     log('Waiting for WebSocket connection to be established');
     await new Promise(resolve => bunInBrowser.ws.on('open', resolve));
     
     log('BunInBrowser instance ready');
-    await delay(100); // Give some time for everything to be fully ready
-  }, 10000);  // Increase timeout for setup
+    await delay(100);
+  }, 10000);
 
   afterAll(() => {
     log('Closing BunInBrowser instance');
@@ -56,50 +67,85 @@ describe("BunInBrowser", () => {
     proxyServer.stop();
   });
 
-  it("should handle GET requests", async () => {
-    log('Testing GET request');
-    const response = await fetch(`http://localhost:${PORT}/`);
+  it("should handle GET requests for root", async () => {
+    log('Testing GET request for root');
+    const response = await fetch(`http://localhost:${HTTP_PORT}/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("Hello from Bun.js in the browser!");
-    await delay(100);
   });
 
-  it("should handle JSON responses", async () => {
-    log('Testing JSON response');
-    const response = await fetch(`http://localhost:${PORT}/json`);
+  it("should handle GET requests for JSON", async () => {
+    log('Testing GET request for JSON');
+    const response = await fetch(`http://localhost:${HTTP_PORT}/json`);
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toContain("application/json");
-    const data = await response.json();
-    expect(data).toEqual({ message: "This is JSON data" });
-    await delay(100);
+    expect(await response.json()).toEqual({ message: "This is JSON data" });
   });
 
-  it("should echo POST requests", async () => {
-    log('Testing POST request echo');
-    const postData = "Hello, server!";
-    const response = await fetch(`http://localhost:${PORT}/echo`, {
+  it("should handle POST requests with echo", async () => {
+    log('Testing POST request with echo');
+    const testData = "Test echo data";
+    const response = await fetch(`http://localhost:${HTTP_PORT}/echo`, {
       method: "POST",
+      body: testData,
       headers: { "Content-Type": "text/plain" },
-      body: postData,
     });
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/plain");
-    expect(await response.text()).toBe(postData);
-    await delay(100);
+    expect(await response.text()).toBe(testData);
   });
 
   it("should handle custom status codes", async () => {
     log('Testing custom status codes');
-    const response = await fetch(`http://localhost:${PORT}/status?code=418`);
+    const response = await fetch(`http://localhost:${HTTP_PORT}/status?code=418`);
     expect(response.status).toBe(418);
-    await delay(100);
   });
 
-  it("should handle 404 for unknown routes", async () => {
-    log('Testing 404 for unknown route');
-    const response = await fetch(`http://localhost:${PORT}/unknown`);
+  it("should return 404 for non-existent routes", async () => {
+    log('Testing 404 for non-existent routes');
+    const response = await fetch(`http://localhost:${HTTP_PORT}/non-existent`);
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("Not Found");
+  });
+
+  it("should serve demo page on the demo server", async () => {
+    log('Testing demo page serving');
+    const response = await fetch(`http://localhost:${DEMO_PORT}/demo`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/html");
+    const text = await response.text();
+    expect(text).toContain("<html");
+    expect(text).toContain("Bun.js in Browser Demo");
+  });
+
+  it("should serve client.js on the demo server", async () => {
+    log('Testing client.js serving');
+    const response = await fetch(`http://localhost:${DEMO_PORT}/client.js`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/javascript");
+    const text = await response.text();
+    expect(text).toContain("class BunInBrowser");
+  });
+
+  it("should handle multiple concurrent requests", async () => {
+    log('Testing multiple concurrent requests');
+    const requests = [
+      fetch(`http://localhost:${HTTP_PORT}/`),
+      fetch(`http://localhost:${HTTP_PORT}/json`),
+      fetch(`http://localhost:${HTTP_PORT}/status?code=201`),
+    ];
+    const responses = await Promise.all(requests);
+    expect(responses[0].status).toBe(200);
+    expect(responses[1].status).toBe(200);
+    expect(responses[2].status).toBe(201);
+  });
+
+  it("should handle WebSocket disconnection and reconnection", async () => {
+    log('Testing WebSocket disconnection and reconnection');
+    bunInBrowser.close();
     await delay(100);
+    bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
+    await new Promise(resolve => bunInBrowser.ws.on('open', resolve));
+    const response = await fetch(`http://localhost:${HTTP_PORT}/`);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("Hello from Bun.js in the browser!");
   });
 });

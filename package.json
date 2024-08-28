@@ -16,7 +16,8 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
-    "bun-types": "^1.0.3"
+    "bun-types": "^1.0.3",
+    "get-port": "^7.1.0"
   },
   "peerDependencies": {
     "bun": "^1.0.0"

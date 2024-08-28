@@ -24,6 +24,7 @@ export class BunInBrowser {
 
       if (!this.serverModule) {
         this.sendResponse({
+          id: request.id,
           status: 503,
           headers: { "Content-Type": "text/plain" },
           body: "Server not ready",
@@ -41,6 +42,7 @@ export class BunInBrowser {
         const response = await this.serverModule.fetch(bunRequest);
         const responseBody = await response.text();
         this.sendResponse({
+          id: request.id,
           status: response.status,
           headers: Object.fromEntries(response.headers.entries()),
           body: responseBody,
@@ -48,6 +50,7 @@ export class BunInBrowser {
       } catch (error) {
         log(`Error handling request: ${error.message}`);
         this.sendResponse({
+          id: request.id,
           status: 500,
           headers: { "Content-Type": "text/plain" },
           body: `Error: ${error.message}`,
