@@ -35,10 +35,16 @@
         button:hover {
             background-color: #45a049;
         }
+        #wsUrl {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>Bun.js in Browser Demo</h1>
+    <input type="text" id="wsUrl" value="ws://localhost:8080" placeholder="WebSocket URL">
     <textarea id="editor">
 // Example Bun.js server code
 export default {
@@ -46,10 +52,10 @@ export default {
   fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === "/") {
-      return new Response("Hello from Bun.js in the browser!");
+      return new Response("Welcome to Bun.js in the browser!");
     }
-    if (url.pathname === "/json") {
-      return Response.json({ message: "This is JSON data" });
+    if (url.pathname === "/api") {
+      return Response.json({ message: "This is a JSON response from Bun.js" });
     }
     return new Response("Not Found", { status: 404 });
   },
@@ -61,19 +67,27 @@ export default {
     <script type="module">
         import { BunInBrowser } from './client.js';
 
-        const bunInBrowser = new BunInBrowser('ws://localhost:8080');
+        let bunInBrowser;
+
         window.runCode = async function() {
             const code = document.getElementById('editor').value;
             const output = document.getElementById('output');
+            const wsUrl = document.getElementById('wsUrl').value;
             output.innerHTML = '';
 
             try {
+                if (!bunInBrowser || bunInBrowser.ws.url !== wsUrl) {
+                    bunInBrowser = new BunInBrowser(wsUrl);
+                }
+
                 await bunInBrowser.start(code);
-                output.innerHTML += 'Server started successfully!\n';
                 output.innerHTML += `Listening on port ${bunInBrowser.serverModule.port}\n`;
                 output.innerHTML += 'Try making requests to http://localhost:3000\n';
             } catch (error) {
                 output.innerHTML += `Error: ${error.message}\n`;
+                if (error.message.includes('WebSocket connection failed')) {
+                    output.innerHTML += 'Make sure the WebSocket server is running and the URL is correct.\n';
+                }
             }
         }
     </script>
