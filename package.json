@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "start": "bun src/server.js",
+    "start": "bun app.js",
     "test": "bun test"
   },
   "keywords": ["bun", "browser", "server", "websocket", "reverse-proxy"],
