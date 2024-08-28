@@ -102,10 +102,10 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3
     },
   });
 
-  log(`HTTP proxy server listening on port ${httpPort}`);
-  log(`WebSocket server listening on port ${wsPort}`);
-  log(`Demo server listening on port ${demoPort}`);
-  log(`Demo available at http://localhost:${demoPort}/demo`);
+  console.log(`HTTP proxy server listening on port ${httpPort}`);
+  console.log(`WebSocket server listening on port ${wsPort}`);
+  console.log(`Demo server listening on port ${demoPort}`);
+  console.log(`Demo available at http://localhost:${demoPort}/demo`);
 
   return {
     httpServer: proxyServer,
