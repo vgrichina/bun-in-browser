@@ -1,6 +1,6 @@
 {
   "name": "bun-in-browser",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Run Bun.js-style servers in the browser with a WebSocket-based reverse proxy",
   "main": "src/server.js",
   "type": "module",
