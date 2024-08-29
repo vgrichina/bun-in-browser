@@ -7,7 +7,7 @@ const log = debug("bun-in-browser:server");
 // Create a custom nanoid function with a safe alphabet for domain names
 const generateSafeId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
 
-export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSubdomains = false } = {}) {
+export function startReverseProxy({ port = 3000, baseUrl = 'http://localhost:3000', useSubdomains = false } = {}) {
   const clients = new Map();
 
   const server = Bun.serve({
@@ -23,12 +23,26 @@ export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSu
 
       let clientId;
       if (useSubdomains) {
-        const subdomain = host.split('.')[0];
-        clientId = subdomain !== baseDomain ? subdomain : null;
+        const baseUrlHost = new URL(baseUrl).host;
+        const hostParts = host.split('.');
+        const baseDomainParts = baseUrlHost.split('.');
+        
+        if (hostParts.length > baseDomainParts.length) {
+          const subdomain = hostParts[0];
+          const remainingParts = hostParts.slice(1).join('.');
+          clientId = remainingParts === baseUrlHost ? subdomain : null;
+        } else {
+          clientId = null;
+        }
       } else {
         const pathParts = url.pathname.split('/');
         clientId = pathParts[1];
         url.pathname = '/' + pathParts.slice(2).join('/');
+      }
+
+      if (clientId === null) {
+        log(`No client ID provided in the request: ${req.url}`);
+        return new Response(`No client ID provided in the request: ${req.url}`, { status: 400 });
       }
 
       if (clientId && !clients.has(clientId)) {
@@ -68,8 +82,8 @@ export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSu
         log(`New WebSocket connection: ${clientId}`);
         clients.set(clientId, ws);
         const clientUrl = useSubdomains
-          ? `http://${clientId}.${baseDomain}:${port}`
-          : `http://${baseDomain}:${port}/${clientId}`;
+          ? `${new URL(baseUrl).protocol}//${clientId}.${new URL(baseUrl).host}`
+          : `${baseUrl}/${clientId}`;
         ws.send(JSON.stringify({ type: 'id', clientId, clientUrl }));
         ws.pendingRequests = new Map();
       },
@@ -109,10 +123,6 @@ export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSu
       },
     },
   });
-
-  console.log(`Server listening on port ${port}`);
-  console.log(`Demo server can be started with: bun run serve-demo`);
-  console.log(`This will serve the demo files on port 3001`);
 
   return {
     server,

@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
 import { startReverseProxy } from "./src/server.js";
 
+const port = parseInt(process.env.PORT) || 3000;
+const baseUrl = process.env.BASE_URL || `http://localhost:${port}`;
+const useSubdomains = process.env.USE_SUBDOMAINS === 'true';
+
 const server = startReverseProxy({
-  port: parseInt(process.env.PORT) || 3000,
-  baseDomain: process.env.BASE_DOMAIN || 'localhost',
-  useSubdomains: process.env.USE_SUBDOMAINS === 'true' // Set to true to use subdomains instead of paths
+  port,
+  baseUrl,
+  useSubdomains
 });
 
 // Handle graceful shutdown
@@ -13,5 +17,6 @@ process.on('SIGINT', () => {
   server.stop();
   process.exit(0);
 });
-
-console.log(`Server started. Press Ctrl+C to stop.`);
+console.log(`Server started on port ${port}. Base URL: ${baseUrl}`);
+console.log(`Run 'bun run serve-demo' to start demo server on port 3001`);
+console.log(`Press Ctrl+C to stop.`);

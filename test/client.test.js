@@ -12,6 +12,7 @@ describe("BunInBrowser", () => {
   let proxyServer;
   let bunInBrowser;
   let PORT;
+  let BASE_URL;
 
   const serverModule = {
     port: null, // We'll set this dynamically
@@ -37,11 +38,12 @@ describe("BunInBrowser", () => {
   beforeAll(async () => {
     // Get available port
     PORT = await getPort({port: portNumbers(3000, 3100)});
+    BASE_URL = `http://localhost:${PORT}`;
 
     serverModule.port = PORT;
 
     log('Starting reverse proxy server');
-    proxyServer = startReverseProxy({ port: PORT });
+    proxyServer = startReverseProxy({ port: PORT, baseUrl: BASE_URL });
     
     log('Waiting for server to start');
     await delay(100);
@@ -126,6 +128,6 @@ describe("BunInBrowser", () => {
 
   it("should receive a client ID and URL", () => {
     expect(bunInBrowser.clientId).toBeTruthy();
-    expect(bunInBrowser.clientUrl).toBeTruthy();
+    expect(bunInBrowser.clientUrl).toContain(BASE_URL);
   });
 });
