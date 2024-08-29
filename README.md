@@ -12,8 +12,16 @@ bun add bun-in-browser
 
 ### Server-side
 
+You can start the server using the provided `app.js` script:
+
+```bash
+PORT=3000 BASE_URL=http://localhost:3000 USE_SUBDOMAINS=false bun app.js
+```
+
+Or you can use the `startReverseProxy` function in your own script:
+
 ```javascript
-import { startReverseProxy } from 'bun-in-browser/server';
+import { startReverseProxy } from 'bun-in-browser/src/server.js';
 
 const { server, stop } = startReverseProxy({
   port: 3000,
@@ -21,8 +29,14 @@ const { server, stop } = startReverseProxy({
   useSubdomains: false
 });
 
-// To stop the server:
-// stop();
+console.log(`Server started on port 3000. Base URL: http://localhost:3000`);
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('Received SIGINT. Shutting down gracefully...');
+  stop();
+  process.exit(0);
+});
 ```
 
 ### Client-side
@@ -101,6 +115,8 @@ Closes the WebSocket connection.
 - JSON response handling
 - Custom status codes
 - Optional subdomain-based client identification
+- Environment variable configuration
+- Graceful shutdown handling
 
 ## Development
 
@@ -108,6 +124,12 @@ To run tests:
 
 ```bash
 bun test
+```
+
+To start the demo server:
+
+```bash
+bun run serve-demo
 ```
 
 ## Debugging
@@ -123,6 +145,16 @@ For running tests with debug logs:
 ```bash
 DEBUG=test:client bun test
 ```
+
+## Environment Variables
+
+When using the `app.js` script, you can configure the server using the following environment variables:
+
+- `PORT`: The port number for the server (default: 3000)
+- `BASE_URL`: The base URL for the server (default: `http://localhost:${PORT}`)
+- `USE_SUBDOMAINS`: Whether to use subdomains for client identification (default: false)
+
+Note: When using `startReverseProxy` directly, the default `baseUrl` is the fixed string 'http://localhost:3000'.
 
 ## License
 
