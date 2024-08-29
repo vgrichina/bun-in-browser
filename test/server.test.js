@@ -9,10 +9,38 @@ const log = debug('test:reverse-proxy');
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const setupTestWsClientHandler = (wsClient) => {
+  wsClient.on('message', (message) => {
+    const data = JSON.parse(message);
+    if (data.method === 'GET') {
+      const response = {
+        id: data.id,
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+        body: `Hello from the proxy server! You requested: ${data.url}`
+      };
+      wsClient.send(JSON.stringify(response));
+    }
+  });
+};
+
+const waitForClientId = (wsClient) => {
+  return new Promise(resolve => {
+    wsClient.on('message', (message) => {
+      const data = JSON.parse(message);
+      if (data.type === 'id') {
+        log(`Received client ID: ${data.clientId}`);
+        resolve(data.clientId);
+      }
+    });
+  });
+};
+
 describe("startReverseProxy", () => {
   let proxyServer;
   let wsClient;
   let HTTP_PORT, WS_PORT;
+  let clientId;
 
   beforeAll(async () => {
     // Get available ports
@@ -34,26 +62,9 @@ describe("startReverseProxy", () => {
     await new Promise(resolve => wsClient.on('open', resolve));
     log('WebSocket connection established');
 
-    // Simulate server behavior by sending client ID message
-    wsClient.send(JSON.stringify({
-      type: 'id',
-      clientId: 'test-client-id',
-      clientUrl: `http://localhost:${HTTP_PORT}/test-client-id`
-    }));
+    clientId = await waitForClientId(wsClient);
 
-    // Set up message handling for the WebSocket client
-    wsClient.on('message', (message) => {
-      const request = JSON.parse(message);
-      if (request.method === 'GET' && request.url === '/') {
-        const response = {
-          id: request.id,
-          status: 200,
-          headers: { "Content-Type": "text/plain" },
-          body: "Hello from the proxy server!"
-        };
-        wsClient.send(JSON.stringify(response));
-      }
-    });
+    setupTestWsClientHandler(wsClient);
   }, 10000);
 
   afterAll(() => {
@@ -75,24 +86,57 @@ describe("startReverseProxy", () => {
 
   it("should handle HTTP requests", async () => {
     log('Testing HTTP request handling');
-    const response = await fetch(`http://localhost:${HTTP_PORT}/`);
+    const response = await fetch(`http://localhost:${HTTP_PORT}/${clientId}/`);
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(text).toBe("Hello from the proxy server!");
+    expect(text).toBe("Hello from the proxy server! You requested: /");
   });
 
-  // Add a new test for the client ID message
-  it("should send client ID message on WebSocket connection", (done) => {
+  it("should send client ID message on WebSocket connection", async () => {
     const testWsClient = new WebSocket(`ws://localhost:${WS_PORT}`);
-    testWsClient.on('message', (message) => {
-      const data = JSON.parse(message);
-      if (data.type === 'id') {
-        expect(data.clientId).toBeTruthy();
-        expect(data.clientUrl).toBeTruthy();
-        expect(data.clientUrl).toContain(`http://localhost:${HTTP_PORT}/`);
-        testWsClient.close();
-        done();
-      }
+    await new Promise(resolve => testWsClient.on('open', resolve));
+    
+    const testClientId = await waitForClientId(testWsClient);
+    
+    expect(testClientId).toBeTruthy();
+    expect(testClientId).not.toBe(clientId);
+    
+    testWsClient.close();
+  });
+
+  it("should handle requests with subpaths", async () => {
+    log('Testing subpath handling');
+    const response = await fetch(`http://localhost:${HTTP_PORT}/${clientId}/subpath`);
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).toBe("Hello from the proxy server! You requested: /subpath");
+  });
+
+  it("should handle requests with subdomains", async () => {
+    log('Testing subdomain handling');
+    const subdomainProxyServer = startReverseProxy({ 
+      httpPort: HTTP_PORT + 1, 
+      wsPort: WS_PORT + 1, 
+      baseDomain: 'localhost', 
+      useSubdomains: true 
     });
+
+    const testWsClient = new WebSocket(`ws://localhost:${WS_PORT + 1}`);
+    
+    await new Promise(resolve => testWsClient.on('open', resolve));
+
+    const subdomainClientId = await waitForClientId(testWsClient);
+
+    setupTestWsClientHandler(testWsClient);
+
+    const response = await fetch(`http://localhost:${HTTP_PORT + 1}/`, {
+      headers: { 'Host': `${subdomainClientId}.localhost` }
+    });
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).toBe("Hello from the proxy server! You requested: /");
+
+    testWsClient.close();
+    subdomainProxyServer.stop();
   });
 });

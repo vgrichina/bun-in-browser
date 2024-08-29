@@ -42,7 +42,7 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, baseDomain =
       }
 
       if (clientId && !clients.has(clientId)) {
-        return new Response("Invalid client ID", { status: 404 });
+        return new Response(`No connected clients with ID: ${clientId}`, { status: 404 });
       }
 
       const requestId = Math.random().toString(36).substring(2, 15);
