@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "bun app.js",
-    "test": "bun test"
+    "test": "bun test",
+    "serve-demo": "serve src -p 3001"
   },
   "keywords": ["bun", "browser", "server", "websocket", "reverse-proxy"],
   "author": "Vlad Grichina",
@@ -18,7 +19,8 @@
   },
   "devDependencies": {
     "bun-types": "^1.0.3",
-    "get-port": "^7.1.0"
+    "get-port": "^7.1.0",
+    "serve": "^14.2.1"
   },
   "peerDependencies": {
     "bun": "^1.0.0"
