@@ -7,6 +7,7 @@ export class BunInBrowser {
     this.ws = new WebSocket(wsUrl);
     this.serverModule = serverModule;
     this.clientId = null;
+    this.clientUrl = null;
     this.setupWebSocketListeners();
     this.setupMessageHandler();
   }
@@ -23,7 +24,22 @@ export class BunInBrowser {
       
       if (message.type === 'id') {
         this.clientId = message.clientId;
+        this.clientUrl = message.clientUrl;
         log(`Received client ID: ${this.clientId}`);
+        log(`Client URL: ${this.clientUrl}`);
+        return;
+      }
+
+      const request = message;
+      log('Received request:', request);
+
+      if (!this.serverModule) {
+        this.sendResponse({
+          id: request.id,
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+          body: "Server not ready",
+        });
         return;
       }
 

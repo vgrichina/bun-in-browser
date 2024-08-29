@@ -57,6 +57,7 @@
     <h1>Bun.js in Browser Demo</h1>
     <input type="text" id="wsUrl" value="ws://localhost:8080" placeholder="WebSocket URL">
     <div id="clientId">Client ID: Not connected</div>
+    <div id="clientUrl">Client URL: Not available</div>
     <textarea id="editor">
 ({
   port: 3000,
@@ -66,7 +67,7 @@
       return new Response("Welcome to Bun.js in the browser!");
     }
     if (url.pathname === "/api") {
-      return Response.json({ message: "This is a JSON response from Bun.js", clientId: window.clientId });
+      return Response.json({ message: "This is a JSON response from Bun.js", clientId: window.clientId, clientUrl: window.clientUrl });
     }
     return new Response("Not Found", { status: 404 });
   },
@@ -80,6 +81,7 @@
 
         let bunInBrowser;
         window.clientId = null;
+        window.clientUrl = null;
 
         window.runCode = async function() {
             const code = document.getElementById('editor').value;
@@ -98,8 +100,11 @@
                     const message = JSON.parse(event.data);
                     if (message.type === 'id') {
                         window.clientId = message.clientId;
+                        window.clientUrl = message.clientUrl;
                         document.getElementById('clientId').textContent = `Client ID: ${window.clientId}`;
+                        document.getElementById('clientUrl').textContent = `Client URL: ${window.clientUrl}`;
                         output.innerHTML += `Received client ID: ${window.clientId}<br>`;
+                        output.innerHTML += `Client URL: <a href="${window.clientUrl}" target="_blank">${window.clientUrl}</a><br>`;
                     }
                 });
 
@@ -109,7 +114,7 @@
                     console.log(`Listening on port ${serverModule.port}`);
                     output.innerHTML += `Listening on port ${serverModule.port}<br>`;
                 }
-                output.innerHTML += 'Waiting for client ID...<br>';
+                output.innerHTML += 'Waiting for client ID and URL...<br>';
             } catch (error) {
                 console.error(`Error: ${error.message}`);
                 output.innerHTML += `Error: ${error.message}<br>`;
@@ -118,18 +123,6 @@
                 }
             }
         }
-
-        // Function to update the output with the client-specific URL
-        function updateClientUrl() {
-            if (window.clientId) {
-                const output = document.getElementById('output');
-                const clientUrl = `http://${window.clientId}.localhost:3000`;
-                output.innerHTML += `Your client-specific URL: <a href="${clientUrl}" target="_blank">${clientUrl}</a><br>`;
-            }
-        }
-
-        // Check for client ID every second and update the URL when available
-        setInterval(updateClientUrl, 1000);
     </script>
 </body>
 </html>

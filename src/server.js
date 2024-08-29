@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const log = debug("bun-in-browser:server");
 
-export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3001, baseDomain = 'localhost' } = {}) {
+export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3001, baseDomain = 'localhost', useSubdomains = false } = {}) {
   const wss = new WebSocketServer({ port: wsPort });
   const clients = new Map();
 
@@ -17,7 +17,10 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3
     const clientId = nanoid(10);
     log(`New WebSocket connection: ${clientId}`);
     clients.set(clientId, ws);
-    ws.send(JSON.stringify({ type: 'id', clientId }));
+    const clientUrl = useSubdomains
+      ? `http://${clientId}.${baseDomain}:${httpPort}`
+      : `http://${baseDomain}:${httpPort}/${clientId}`;
+    ws.send(JSON.stringify({ type: 'id', clientId, clientUrl }));
 
     ws.on("close", () => {
       log(`WebSocket connection closed: ${clientId}`);
@@ -32,11 +35,18 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3
       const host = req.headers.get('host');
       log(`Received request: ${req.method} ${url.pathname} (Host: ${host})`);
 
-      const subdomain = host.split('.')[0];
-      const clientId = subdomain !== baseDomain ? subdomain : null;
+      let clientId;
+      if (useSubdomains) {
+        const subdomain = host.split('.')[0];
+        clientId = subdomain !== baseDomain ? subdomain : null;
+      } else {
+        const pathParts = url.pathname.split('/');
+        clientId = pathParts[1];
+        url.pathname = '/' + pathParts.slice(2).join('/');
+      }
 
       if (clientId && !clients.has(clientId)) {
-        return new Response("Invalid subdomain", { status: 404 });
+        return new Response("Invalid client ID", { status: 404 });
       }
 
       const requestId = Math.random().toString(36).substring(2, 15);
