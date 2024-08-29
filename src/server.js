@@ -1,8 +1,11 @@
 import { serve } from "bun";
 import debug from "debug";
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 
 const log = debug("bun-in-browser:server");
+
+// Create a custom nanoid function with a safe alphabet for domain names
+const generateSafeId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
 
 export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSubdomains = false } = {}) {
   const clients = new Map();
@@ -61,7 +64,7 @@ export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSu
     },
     websocket: {
       open(ws) {
-        const clientId = nanoid(10);
+        const clientId = generateSafeId();
         log(`New WebSocket connection: ${clientId}`);
         clients.set(clientId, ws);
         const clientUrl = useSubdomains
