@@ -114,14 +114,17 @@ describe("startReverseProxy", () => {
 
   it("should handle requests with subdomains", async () => {
     log('Testing subdomain handling');
+    const subdomainHttpPort = await getPort({port: portNumbers(HTTP_PORT + 1, HTTP_PORT + 100)});
+    const subdomainWsPort = await getPort({port: portNumbers(WS_PORT + 1, WS_PORT + 100)});
+    
     const subdomainProxyServer = startReverseProxy({ 
-      httpPort: HTTP_PORT + 1, 
-      wsPort: WS_PORT + 1, 
+      httpPort: subdomainHttpPort, 
+      wsPort: subdomainWsPort, 
       baseDomain: 'localhost', 
       useSubdomains: true 
     });
 
-    const testWsClient = new WebSocket(`ws://localhost:${WS_PORT + 1}`);
+    const testWsClient = new WebSocket(`ws://localhost:${subdomainWsPort}`);
     
     await new Promise(resolve => testWsClient.on('open', resolve));
 
@@ -129,7 +132,7 @@ describe("startReverseProxy", () => {
 
     setupTestWsClientHandler(testWsClient);
 
-    const response = await fetch(`http://localhost:${HTTP_PORT + 1}/`, {
+    const response = await fetch(`http://localhost:${subdomainHttpPort}/`, {
       headers: { 'Host': `${subdomainClientId}.localhost` }
     });
     expect(response.status).toBe(200);
