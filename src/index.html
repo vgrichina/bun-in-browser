@@ -90,14 +90,18 @@
                 // Evaluate the code to get the serverModule
                 const serverModule = eval(code);
 
-                // Create a new BunInBrowser instance with the serverModule
-                bunInBrowser = new BunInBrowser(wsUrl, serverModule);
+                if (!bunInBrowser) {
+                    // Create a new BunInBrowser instance with the serverModule only if it doesn't exist
+                    bunInBrowser = new BunInBrowser(wsUrl, serverModule);
+                    // Wait for the BunInBrowser instance to be ready
+                    await bunInBrowser.waitUntilReady();
+                } else {
+                    // Update the serverModule of the existing BunInBrowser instance
+                    bunInBrowser.serverModule = serverModule;
+                }
 
-                // Wait for the BunInBrowser instance to be ready
-                await bunInBrowser.waitUntilReady();
-
-                console.log(`Server started`);
-                output.innerHTML += `Server started<br>`;
+                console.log(`Server updated`);
+                output.innerHTML += `Server updated<br>`;
                 if (serverModule && serverModule.port) {
                     console.log(`Listening on port ${serverModule.port}`);
                     output.innerHTML += `Listening on port ${serverModule.port}<br>`;
