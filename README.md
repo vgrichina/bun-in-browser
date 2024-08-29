@@ -15,13 +15,13 @@ bun add bun-in-browser
 ```javascript
 import { startReverseProxy } from 'bun-in-browser/server';
 
-const { httpServer, wsServer, demoServer, stop } = startReverseProxy({
-  httpPort: 3000,
-  wsPort: 8080,
-  demoPort: 3001
+const { server, stop } = startReverseProxy({
+  port: 3000,
+  baseUrl: 'http://localhost:3000',
+  useSubdomains: false
 });
 
-// To stop the servers:
+// To stop the server:
 // stop();
 ```
 
@@ -30,27 +30,26 @@ const { httpServer, wsServer, demoServer, stop } = startReverseProxy({
 ```javascript
 import { BunInBrowser } from 'bun-in-browser/client';
 
-const bunInBrowser = new BunInBrowser('ws://localhost:8080');
+const bunInBrowser = new BunInBrowser('ws://localhost:3000');
 
 // Define your server module
 const serverModule = {
-  port: 3000, // This should match the httpPort in startReverseProxy
   fetch(req) {
     const url = new URL(req.url);
-    
+
     if (url.pathname === "/") {
       return new Response("Hello from Bun.js in the browser!");
     }
-    
+
     if (url.pathname === "/json") {
       return Response.json({ message: "This is JSON data" });
     }
-    
+
     if (url.pathname === "/status") {
       const statusCode = parseInt(url.searchParams.get("code") || "404");
       return new Response(`Status: ${statusCode}`, { status: statusCode });
     }
-    
+
     return new Response("Not Found", { status: 404 });
   },
 };
@@ -61,12 +60,6 @@ bunInBrowser.serverModule = serverModule;
 // bunInBrowser.close();
 ```
 
-## Demo
-
-A built-in demo is available when you run the server. Simply navigate to `http://localhost:3001/demo` in your web browser after starting the server.
-
-The demo includes a simple editor where you can write and run Bun.js server code directly in the browser. You can modify the code and make requests to `http://localhost:3000` to see the results.
-
 ## API
 
 ### Server-side
@@ -75,15 +68,13 @@ The demo includes a simple editor where you can write and run Bun.js server code
 
 Starts the reverse proxy server.
 
-- `options.httpPort`: The port for the HTTP proxy server (default: 3000)
-- `options.wsPort`: The port for the WebSocket server (default: 8080)
-- `options.demoPort`: The port for the demo server (default: 3001)
+- `options.port`: The port for the server (default: 3000)
+- `options.baseUrl`: The base URL for the server (default: 'http://localhost:3000')
+- `options.useSubdomains`: Whether to use subdomains for client identification (default: false)
 
 Returns an object with:
-- `httpServer`: The HTTP proxy server instance
-- `wsServer`: The WebSocket server instance
-- `demoServer`: The demo server instance
-- `stop()`: Function to stop all servers
+- `server`: The server instance
+- `stop()`: Function to stop the server
 
 ### Client-side
 
@@ -96,7 +87,6 @@ Creates a new BunInBrowser instance.
 #### `bunInBrowser.serverModule`
 
 Set this property to your Bun.js server module object. The module should have:
-- `port`: The port number (should match the `httpPort` used in `startReverseProxy`)
 - `fetch(req)`: A function that handles incoming requests and returns a Response object
 
 #### `bunInBrowser.close()`
@@ -110,7 +100,7 @@ Closes the WebSocket connection.
 - Support for various HTTP methods (GET, POST, etc.)
 - JSON response handling
 - Custom status codes
-- Demo server for easy testing and development
+- Optional subdomain-based client identification
 
 ## Development
 
