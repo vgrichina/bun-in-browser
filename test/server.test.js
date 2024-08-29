@@ -12,18 +12,17 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 describe("startReverseProxy", () => {
   let proxyServer;
   let wsClient;
-  let HTTP_PORT, WS_PORT, DEMO_PORT;
+  let HTTP_PORT, WS_PORT;
 
   beforeAll(async () => {
     // Get available ports
-    [HTTP_PORT, WS_PORT, DEMO_PORT] = await Promise.all([
+    [HTTP_PORT, WS_PORT] = await Promise.all([
       getPort({port: portNumbers(3000, 3100)}),
       getPort({port: portNumbers(8080, 8180)}),
-      getPort({port: portNumbers(3001, 3101)}),
     ]);
 
     log('Starting reverse proxy server');
-    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT, demoPort: DEMO_PORT });
+    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT });
     
     log('Waiting for WebSocket server to start');
     await delay(100);
@@ -35,6 +34,13 @@ describe("startReverseProxy", () => {
     await new Promise(resolve => wsClient.on('open', resolve));
     log('WebSocket connection established');
 
+    // Simulate server behavior by sending client ID message
+    wsClient.send(JSON.stringify({
+      type: 'id',
+      clientId: 'test-client-id',
+      clientUrl: `http://localhost:${HTTP_PORT}/test-client-id`
+    }));
+
     // Set up message handling for the WebSocket client
     wsClient.on('message', (message) => {
       const request = JSON.parse(message);
@@ -42,6 +48,7 @@ describe("startReverseProxy", () => {
         const response = {
           id: request.id,
           status: 200,
+          headers: { "Content-Type": "text/plain" },
           body: "Hello from the proxy server!"
         };
         wsClient.send(JSON.stringify(response));
@@ -64,7 +71,6 @@ describe("startReverseProxy", () => {
     log('Testing server ports');
     expect(proxyServer.httpServer.port).toBe(HTTP_PORT);
     expect(proxyServer.wsServer.address().port).toBe(WS_PORT);
-    expect(proxyServer.demoServer.port).toBe(DEMO_PORT);
   });
 
   it("should handle HTTP requests", async () => {
@@ -75,20 +81,18 @@ describe("startReverseProxy", () => {
     expect(text).toBe("Hello from the proxy server!");
   });
 
-  it("should serve demo page", async () => {
-    log('Testing demo page serving');
-    const response = await fetch(`http://localhost:${DEMO_PORT}/demo`);
-    expect(response.status).toBe(200);
-    const text = await response.text();
-    expect(text).toContain("<html");
-    expect(text).toContain("Bun.js in Browser Demo");
-  });
-
-  it("should serve client.js", async () => {
-    log('Testing client.js serving');
-    const response = await fetch(`http://localhost:${DEMO_PORT}/client.js`);
-    expect(response.status).toBe(200);
-    const text = await response.text();
-    expect(text).toContain("class BunInBrowser");
+  // Add a new test for the client ID message
+  it("should send client ID message on WebSocket connection", (done) => {
+    const testWsClient = new WebSocket(`ws://localhost:${WS_PORT}`);
+    testWsClient.on('message', (message) => {
+      const data = JSON.parse(message);
+      if (data.type === 'id') {
+        expect(data.clientId).toBeTruthy();
+        expect(data.clientUrl).toBeTruthy();
+        expect(data.clientUrl).toContain(`http://localhost:${HTTP_PORT}/`);
+        testWsClient.close();
+        done();
+      }
+    });
   });
 });

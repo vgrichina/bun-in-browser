@@ -8,6 +8,9 @@ export class BunInBrowser {
     this.serverModule = serverModule;
     this.clientId = null;
     this.clientUrl = null;
+    this.readyPromise = new Promise((resolve) => {
+      this.resolveReady = resolve;
+    });
     this.setupWebSocketListeners();
     this.setupMessageHandler();
   }
@@ -27,6 +30,7 @@ export class BunInBrowser {
         this.clientUrl = message.clientUrl;
         log(`Received client ID: ${this.clientId}`);
         log(`Client URL: ${this.clientUrl}`);
+        this.resolveReady();
         return;
       }
 
@@ -77,5 +81,9 @@ export class BunInBrowser {
 
   close() {
     this.ws.close();
+  }
+
+  async waitUntilReady() {
+    await this.readyPromise;
   }
 }

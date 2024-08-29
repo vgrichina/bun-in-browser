@@ -11,7 +11,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 describe("BunInBrowser", () => {
   let proxyServer;
   let bunInBrowser;
-  let HTTP_PORT, WS_PORT, DEMO_PORT;
+  let HTTP_PORT, WS_PORT;
 
   const serverModule = {
     port: null, // We'll set this dynamically
@@ -36,16 +36,15 @@ describe("BunInBrowser", () => {
 
   beforeAll(async () => {
     // Get available ports
-    [HTTP_PORT, WS_PORT, DEMO_PORT] = await Promise.all([
+    [HTTP_PORT, WS_PORT] = await Promise.all([
       getPort({port: portNumbers(3000, 3100)}),
       getPort({port: portNumbers(8080, 8180)}),
-      getPort({port: portNumbers(3001, 3101)}),
     ]);
 
     serverModule.port = HTTP_PORT;
 
     log('Starting reverse proxy server');
-    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT, demoPort: DEMO_PORT });
+    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT });
     
     log('Waiting for WebSocket server to start');
     await delay(100);
@@ -53,13 +52,9 @@ describe("BunInBrowser", () => {
     log('Creating BunInBrowser instance');
     bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
     
-    log('Waiting for WebSocket connection to be established');
-    await new Promise(resolve => {
-      bunInBrowser.ws.addEventListener('open', resolve, { once: true });
-    });
-    
+    log('Waiting for BunInBrowser to be ready');
+    await bunInBrowser.waitUntilReady();
     log('BunInBrowser instance ready');
-    await delay(100);
   }, 10000);
 
   afterAll(() => {
@@ -71,14 +66,14 @@ describe("BunInBrowser", () => {
 
   it("should handle GET requests for root", async () => {
     log('Testing GET request for root');
-    const response = await fetch(`http://localhost:${HTTP_PORT}/`);
+    const response = await fetch(`${bunInBrowser.clientUrl}/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("Hello from Bun.js in the browser!");
   });
 
   it("should handle GET requests for JSON", async () => {
     log('Testing GET request for JSON');
-    const response = await fetch(`http://localhost:${HTTP_PORT}/json`);
+    const response = await fetch(`${bunInBrowser.clientUrl}/json`);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ message: "This is JSON data" });
   });
@@ -86,7 +81,7 @@ describe("BunInBrowser", () => {
   it("should handle POST requests with echo", async () => {
     log('Testing POST request with echo');
     const testData = "Test echo data";
-    const response = await fetch(`http://localhost:${HTTP_PORT}/echo`, {
+    const response = await fetch(`${bunInBrowser.clientUrl}/echo`, {
       method: "POST",
       body: testData,
       headers: { "Content-Type": "text/plain" },
@@ -97,42 +92,23 @@ describe("BunInBrowser", () => {
 
   it("should handle custom status codes", async () => {
     log('Testing custom status codes');
-    const response = await fetch(`http://localhost:${HTTP_PORT}/status?code=418`);
+    const response = await fetch(`${bunInBrowser.clientUrl}/status?code=418`);
     expect(response.status).toBe(418);
   });
 
   it("should return 404 for non-existent routes", async () => {
     log('Testing 404 for non-existent routes');
-    const response = await fetch(`http://localhost:${HTTP_PORT}/non-existent`);
+    const response = await fetch(`${bunInBrowser.clientUrl}/non-existent`);
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("Not Found");
-  });
-
-  it("should serve demo page on the demo server", async () => {
-    log('Testing demo page serving');
-    const response = await fetch(`http://localhost:${DEMO_PORT}/demo`);
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/html");
-    const text = await response.text();
-    expect(text).toContain("<html");
-    expect(text).toContain("Bun.js in Browser Demo");
-  });
-
-  it("should serve client.js on the demo server", async () => {
-    log('Testing client.js serving');
-    const response = await fetch(`http://localhost:${DEMO_PORT}/client.js`);
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("application/javascript");
-    const text = await response.text();
-    expect(text).toContain("class BunInBrowser");
   });
 
   it("should handle multiple concurrent requests", async () => {
     log('Testing multiple concurrent requests');
     const requests = [
-      fetch(`http://localhost:${HTTP_PORT}/`),
-      fetch(`http://localhost:${HTTP_PORT}/json`),
-      fetch(`http://localhost:${HTTP_PORT}/status?code=201`),
+      fetch(`${bunInBrowser.clientUrl}/`),
+      fetch(`${bunInBrowser.clientUrl}/json`),
+      fetch(`${bunInBrowser.clientUrl}/status?code=201`),
     ];
     const responses = await Promise.all(requests);
     expect(responses[0].status).toBe(200);
@@ -145,11 +121,14 @@ describe("BunInBrowser", () => {
     bunInBrowser.close();
     await delay(100);
     bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
-    await new Promise(resolve => {
-      bunInBrowser.ws.addEventListener('open', resolve, { once: true });
-    });
-    const response = await fetch(`http://localhost:${HTTP_PORT}/`);
+    await bunInBrowser.waitUntilReady();
+    const response = await fetch(`${bunInBrowser.clientUrl}/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("Hello from Bun.js in the browser!");
+  });
+
+  it("should receive a client ID and URL", () => {
+    expect(bunInBrowser.clientId).toBeTruthy();
+    expect(bunInBrowser.clientUrl).toBeTruthy();
   });
 });
