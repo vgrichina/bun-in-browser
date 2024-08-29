@@ -4,20 +4,24 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import debug from "debug";
+import { nanoid } from 'nanoid';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const log = debug("bun-in-browser:server");
 
-export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3001 } = {}) {
+export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3001, baseDomain = 'localhost' } = {}) {
   const wss = new WebSocketServer({ port: wsPort });
-  const clients = new Set();
+  const clients = new Map();
 
   wss.on("connection", (ws) => {
-    log("New WebSocket connection");
-    clients.add(ws);
+    const clientId = nanoid(10);
+    log(`New WebSocket connection: ${clientId}`);
+    clients.set(clientId, ws);
+    ws.send(JSON.stringify({ type: 'id', clientId }));
+
     ws.on("close", () => {
-      log("WebSocket connection closed");
-      clients.delete(ws);
+      log(`WebSocket connection closed: ${clientId}`);
+      clients.delete(clientId);
     });
   });
 
@@ -25,7 +29,15 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3
     port: httpPort,
     async fetch(req) {
       const url = new URL(req.url);
-      log(`Received request: ${req.method} ${url.pathname}`);
+      const host = req.headers.get('host');
+      log(`Received request: ${req.method} ${url.pathname} (Host: ${host})`);
+
+      const subdomain = host.split('.')[0];
+      const clientId = subdomain !== baseDomain ? subdomain : null;
+
+      if (clientId && !clients.has(clientId)) {
+        return new Response("Invalid subdomain", { status: 404 });
+      }
 
       const requestId = Math.random().toString(36).substring(2, 15);
       const requestData = {
@@ -36,11 +48,9 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, demoPort = 3
         body: req.body ? await req.text() : undefined,
       };
 
-      log(`Forwarding request ${requestId} to ${clients.size} connected clients`);
-      const client = Array.from(clients)[0]; // For simplicity, we're using the first client
+      const client = clientId ? clients.get(clientId) : clients.values().next().value;
 
       if (!client) {
-        log("No connected clients, returning 503");
         return new Response("No connected clients", { status: 503 });
       }
 

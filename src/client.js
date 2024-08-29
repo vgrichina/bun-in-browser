@@ -4,33 +4,26 @@ const log = debug('bun-in-browser:client');
 
 export class BunInBrowser {
   constructor(wsUrl, serverModule) {
-    // Use native WebSocket
     this.ws = new WebSocket(wsUrl);
     this.serverModule = serverModule;
+    this.clientId = null;
     this.setupWebSocketListeners();
     this.setupMessageHandler();
   }
 
   setupWebSocketListeners() {
-    // Use addEventListener instead of .on
     this.ws.addEventListener('open', () => log('WebSocket connection opened'));
     this.ws.addEventListener('close', () => log('WebSocket connection closed'));
     this.ws.addEventListener('error', (error) => log('WebSocket error:', error));
   }
 
   setupMessageHandler() {
-    // Use addEventListener and handle MessageEvent
     this.ws.addEventListener('message', async (event) => {
-      const request = JSON.parse(event.data);
-      log('Received request:', request);
-
-      if (!this.serverModule) {
-        this.sendResponse({
-          id: request.id,
-          status: 503,
-          headers: { "Content-Type": "text/plain" },
-          body: "Server not ready",
-        });
+      const message = JSON.parse(event.data);
+      
+      if (message.type === 'id') {
+        this.clientId = message.clientId;
+        log(`Received client ID: ${this.clientId}`);
         return;
       }
 

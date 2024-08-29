@@ -47,11 +47,16 @@
             margin-bottom: 10px;
             padding: 5px;
         }
+        #clientId {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Bun.js in Browser Demo</h1>
     <input type="text" id="wsUrl" value="ws://localhost:8080" placeholder="WebSocket URL">
+    <div id="clientId">Client ID: Not connected</div>
     <textarea id="editor">
 ({
   port: 3000,
@@ -61,7 +66,7 @@
       return new Response("Welcome to Bun.js in the browser!");
     }
     if (url.pathname === "/api") {
-      return Response.json({ message: "This is a JSON response from Bun.js" });
+      return Response.json({ message: "This is a JSON response from Bun.js", clientId: window.clientId });
     }
     return new Response("Not Found", { status: 404 });
   },
@@ -74,6 +79,7 @@
         import { BunInBrowser } from './client.js';
 
         let bunInBrowser;
+        window.clientId = null;
 
         window.runCode = async function() {
             const code = document.getElementById('editor').value;
@@ -88,13 +94,22 @@
                 // Create a new BunInBrowser instance with the serverModule
                 bunInBrowser = new BunInBrowser(wsUrl, serverModule);
 
+                bunInBrowser.ws.addEventListener('message', (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'id') {
+                        window.clientId = message.clientId;
+                        document.getElementById('clientId').textContent = `Client ID: ${window.clientId}`;
+                        output.innerHTML += `Received client ID: ${window.clientId}<br>`;
+                    }
+                });
+
                 console.log(`Server started`);
                 output.innerHTML += `Server started<br>`;
                 if (serverModule && serverModule.port) {
                     console.log(`Listening on port ${serverModule.port}`);
                     output.innerHTML += `Listening on port ${serverModule.port}<br>`;
                 }
-                output.innerHTML += 'Try making requests to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a><br>';
+                output.innerHTML += 'Waiting for client ID...<br>';
             } catch (error) {
                 console.error(`Error: ${error.message}`);
                 output.innerHTML += `Error: ${error.message}<br>`;
@@ -103,6 +118,18 @@
                 }
             }
         }
+
+        // Function to update the output with the client-specific URL
+        function updateClientUrl() {
+            if (window.clientId) {
+                const output = document.getElementById('output');
+                const clientUrl = `http://${window.clientId}.localhost:3000`;
+                output.innerHTML += `Your client-specific URL: <a href="${clientUrl}" target="_blank">${clientUrl}</a><br>`;
+            }
+        }
+
+        // Check for client ID every second and update the URL when available
+        setInterval(updateClientUrl, 1000);
     </script>
 </body>
 </html>
