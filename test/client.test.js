@@ -11,7 +11,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 describe("BunInBrowser", () => {
   let proxyServer;
   let bunInBrowser;
-  let HTTP_PORT, WS_PORT;
+  let PORT;
 
   const serverModule = {
     port: null, // We'll set this dynamically
@@ -35,22 +35,19 @@ describe("BunInBrowser", () => {
   };
 
   beforeAll(async () => {
-    // Get available ports
-    [HTTP_PORT, WS_PORT] = await Promise.all([
-      getPort({port: portNumbers(3000, 3100)}),
-      getPort({port: portNumbers(8080, 8180)}),
-    ]);
+    // Get available port
+    PORT = await getPort({port: portNumbers(3000, 3100)});
 
-    serverModule.port = HTTP_PORT;
+    serverModule.port = PORT;
 
     log('Starting reverse proxy server');
-    proxyServer = startReverseProxy({ httpPort: HTTP_PORT, wsPort: WS_PORT });
+    proxyServer = startReverseProxy({ port: PORT });
     
-    log('Waiting for WebSocket server to start');
+    log('Waiting for server to start');
     await delay(100);
     
     log('Creating BunInBrowser instance');
-    bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
+    bunInBrowser = new BunInBrowser(`ws://localhost:${PORT}`, serverModule);
     
     log('Waiting for BunInBrowser to be ready');
     await bunInBrowser.waitUntilReady();
@@ -120,7 +117,7 @@ describe("BunInBrowser", () => {
     log('Testing WebSocket disconnection and reconnection');
     bunInBrowser.close();
     await delay(100);
-    bunInBrowser = new BunInBrowser(`ws://localhost:${WS_PORT}`, serverModule);
+    bunInBrowser = new BunInBrowser(`ws://localhost:${PORT}`, serverModule);
     await bunInBrowser.waitUntilReady();
     const response = await fetch(`${bunInBrowser.clientUrl}/`);
     expect(response.status).toBe(200);

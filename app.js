@@ -2,8 +2,7 @@
 import { startReverseProxy } from "./src/server.js";
 
 const server = startReverseProxy({
-  httpPort: parseInt(process.env.HTTP_PORT) || 3000,
-  wsPort: parseInt(process.env.WS_PORT) || 8080,
+  port: parseInt(process.env.PORT) || 3000,
   baseDomain: process.env.BASE_DOMAIN || 'localhost',
   useSubdomains: process.env.USE_SUBDOMAINS === 'true' // Set to true to use subdomains instead of paths
 });
@@ -15,4 +14,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-console.log('Server started. Press Ctrl+C to stop.');
+console.log(`Server started. Press Ctrl+C to stop.`);

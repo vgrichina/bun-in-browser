@@ -1,35 +1,22 @@
 import { serve } from "bun";
-import { Server as WebSocketServer } from "ws";
 import debug from "debug";
 import { nanoid } from 'nanoid';
 
 const log = debug("bun-in-browser:server");
 
-export function startReverseProxy({ httpPort = 3000, wsPort = 8080, baseDomain = 'localhost', useSubdomains = false } = {}) {
-  const wss = new WebSocketServer({ port: wsPort });
+export function startReverseProxy({ port = 3000, baseDomain = 'localhost', useSubdomains = false } = {}) {
   const clients = new Map();
 
-  wss.on("connection", (ws) => {
-    const clientId = nanoid(10);
-    log(`New WebSocket connection: ${clientId}`);
-    clients.set(clientId, ws);
-    const clientUrl = useSubdomains
-      ? `http://${clientId}.${baseDomain}:${httpPort}`
-      : `http://${baseDomain}:${httpPort}/${clientId}`;
-    ws.send(JSON.stringify({ type: 'id', clientId, clientUrl }));
-
-    ws.on("close", () => {
-      log(`WebSocket connection closed: ${clientId}`);
-      clients.delete(clientId);
-    });
-  });
-
-  const proxyServer = serve({
-    port: httpPort,
-    async fetch(req) {
+  const server = Bun.serve({
+    port,
+    async fetch(req, server) {
       const url = new URL(req.url);
       const host = req.headers.get('host');
       log(`Received request: ${req.method} ${url.pathname} (Host: ${host})`);
+
+      if (server.upgrade(req)) {
+        return; // WebSocket upgrade successful
+      }
 
       let clientId;
       if (useSubdomains) {
@@ -66,44 +53,69 @@ export function startReverseProxy({ httpPort = 3000, wsPort = 8080, baseDomain =
           resolve(new Response("Client timeout", { status: 504 }));
         }, 5000);
 
-        client.send(JSON.stringify(requestData), (error) => {
-          if (error) {
-            log(`Failed to send request ${requestId} to client`, error);
-            clearTimeout(timeoutId);
-            resolve(new Response("Failed to send request to client", { status: 500 }));
-          }
-        });
+        client.send(JSON.stringify(requestData));
 
-        const messageHandler = (message) => {
-          const response = JSON.parse(message);
-          if (response.id === requestId) {
-            log(`Received response for request ${requestId}`);
-            client.removeListener('message', messageHandler);
-            clearTimeout(timeoutId);
-            resolve(new Response(response.body, {
+        client.pendingRequests = client.pendingRequests || new Map();
+        client.pendingRequests.set(requestId, { resolve, timeoutId });
+      });
+    },
+    websocket: {
+      open(ws) {
+        const clientId = nanoid(10);
+        log(`New WebSocket connection: ${clientId}`);
+        clients.set(clientId, ws);
+        const clientUrl = useSubdomains
+          ? `http://${clientId}.${baseDomain}:${port}`
+          : `http://${baseDomain}:${port}/${clientId}`;
+        ws.send(JSON.stringify({ type: 'id', clientId, clientUrl }));
+        ws.pendingRequests = new Map();
+      },
+      message(ws, message) {
+        const response = JSON.parse(message);
+        if (response.id) {
+          const pendingRequest = ws.pendingRequests.get(response.id);
+          if (pendingRequest) {
+            log(`Received response for request ${response.id}`);
+            clearTimeout(pendingRequest.timeoutId);
+            pendingRequest.resolve(new Response(response.body, {
               status: response.status,
               headers: response.headers,
             }));
+            ws.pendingRequests.delete(response.id);
+          } else {
+            log(`Received response for unknown request: ${response.id}`);
           }
-        };
-
-        client.on('message', messageHandler);
-      });
+        } else {
+          log(`Received unexpected message: ${message}`);
+        }
+      },
+      close(ws) {
+        const clientId = [...clients.entries()].find(([_, client]) => client === ws)?.[0];
+        if (clientId) {
+          log(`WebSocket connection closed: ${clientId}`);
+          clients.delete(clientId);
+        }
+        // Clear any pending requests
+        if (ws.pendingRequests) {
+          for (const [, { resolve, timeoutId }] of ws.pendingRequests) {
+            clearTimeout(timeoutId);
+            resolve(new Response("WebSocket connection closed", { status: 503 }));
+          }
+          ws.pendingRequests.clear();
+        }
+      },
     },
   });
 
-  console.log(`HTTP proxy server listening on port ${httpPort}`);
-  console.log(`WebSocket server listening on port ${wsPort}`);
+  console.log(`Server listening on port ${port}`);
   console.log(`Demo server can be started with: bun run serve-demo`);
   console.log(`This will serve the demo files on port 3001`);
 
   return {
-    httpServer: proxyServer,
-    wsServer: wss,
+    server,
     stop: () => {
-      log("Stopping servers");
-      proxyServer.stop();
-      wss.close();
+      log("Stopping server");
+      server.stop();
       clients.clear();
     }
   };
