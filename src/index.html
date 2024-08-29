@@ -80,8 +80,6 @@
         import { BunInBrowser } from 'https://cdn.skypack.dev/bun-in-browser/src/client.js';
 
         let bunInBrowser;
-        window.clientId = null;
-        window.clientUrl = null;
 
         window.runCode = async function() {
             const code = document.getElementById('editor').value;
@@ -96,17 +94,8 @@
                 // Create a new BunInBrowser instance with the serverModule
                 bunInBrowser = new BunInBrowser(wsUrl, serverModule);
 
-                bunInBrowser.ws.addEventListener('message', (event) => {
-                    const message = JSON.parse(event.data);
-                    if (message.type === 'id') {
-                        window.clientId = message.clientId;
-                        window.clientUrl = message.clientUrl;
-                        document.getElementById('clientId').textContent = `Client ID: ${window.clientId}`;
-                        document.getElementById('clientUrl').textContent = `Client URL: ${window.clientUrl}`;
-                        output.innerHTML += `Received client ID: ${window.clientId}<br>`;
-                        output.innerHTML += `Client URL: <a href="${window.clientUrl}" target="_blank">${window.clientUrl}</a><br>`;
-                    }
-                });
+                // Wait for the BunInBrowser instance to be ready
+                await bunInBrowser.waitUntilReady();
 
                 console.log(`Server started`);
                 output.innerHTML += `Server started<br>`;
@@ -114,7 +103,8 @@
                     console.log(`Listening on port ${serverModule.port}`);
                     output.innerHTML += `Listening on port ${serverModule.port}<br>`;
                 }
-                output.innerHTML += 'Waiting for client ID and URL...<br>';
+                output.innerHTML += `Client ID: ${bunInBrowser.clientId}<br>`;
+                output.innerHTML += `Client URL: <a href="${bunInBrowser.clientUrl}" target="_blank">${bunInBrowser.clientUrl}</a><br>`;
             } catch (error) {
                 console.error(`Error: ${error.message}`);
                 output.innerHTML += `Error: ${error.message}<br>`;
