@@ -7,10 +7,9 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            line-height: 1.6;
             margin: 0;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-color: #f0f0f0;
         }
         .container {
             max-width: 800px;
@@ -28,7 +27,7 @@
             padding: 0;
         }
         li {
-            margin-bottom: 10px;
+            margin-bottom: 1em;
         }
         a {
             color: #0066cc;
@@ -37,6 +36,9 @@
         a:hover {
             text-decoration: underline;
         }
+        .demo-description {
+            margin: 0.5em 0;
+        }
     </style>
 </head>
 <body>
@@ -44,8 +46,14 @@
         <h1>Bun.js in Browser Demos</h1>
         <p>Select a demo to explore:</p>
         <ul>
-            <li><a href="advanced.html">Advanced Demo</a> - Interactive demo with editable code</li>
-            <li><a href="simple.html">Simple Demo</a> - Basic demo with pre-configured server</li>
+            <li>
+                <a href="advanced.html">Advanced Demo</a>
+                <p class="demo-description">Interactive demo with editable code, including a guest book application</p>
+            </li>
+            <li>
+                <a href="simple.html">Simple Demo</a>
+                <p class="demo-description">Basic demo with pre-configured server, demonstrating simple routing</p>
+            </li>
         </ul>
     </div>
 </body>
