@@ -22,6 +22,10 @@
     "get-port": "^7.1.0",
     "serve": "^14.2.1"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vgrichina/bun-in-browser.git"
+  },
   "peerDependencies": {
     "bun": "^1.0.0"
   }
