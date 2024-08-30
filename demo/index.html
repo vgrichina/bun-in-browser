@@ -19,7 +19,7 @@
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        h1 {
+        h1, h2 {
             color: #333;
         }
         ul {
@@ -36,14 +36,49 @@
         a:hover {
             text-decoration: underline;
         }
-        .demo-description {
+        .demo-description, .project-description {
             margin: 0.5em 0;
+        }
+        .features-list {
+            background-color: #f9f9f9;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            border-radius: 0 5px 5px 0;
+        }
+        .features-list li {
+            margin-bottom: 0.5em;
+            position: relative;
+            padding-left: 20px;
+        }
+        .features-list li::before {
+            content: '✓';
+            color: #0066cc;
+            position: absolute;
+            left: 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Bun.js in Browser Demos</h1>
+        <p class="project-description">
+            Run Bun.js-style servers in the browser with a WebSocket-based reverse proxy.
+            This project allows you to create and run Bun.js servers directly in your web browser,
+            enabling server-like functionality without the need for a traditional backend.
+        </p>
+        <p>
+            <a href="https://github.com/vgrichina/bun-in-browser" target="_blank">View on GitHub</a>
+        </p>
+        <h2>Features</h2>
+        <ul class="features-list">
+            <li>Run Bun.js-style servers in the browser</li>
+            <li>WebSocket-based communication between browser and server</li>
+            <li>Support for various HTTP methods (GET, POST, etc.)</li>
+            <li>JSON response handling</li>
+            <li>HTML response generation</li>
+            <li>Form data processing</li>
+        </ul>
+        <h2>Demos</h2>
         <p>Select a demo to explore:</p>
         <ul>
             <li>
