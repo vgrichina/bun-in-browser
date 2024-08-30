@@ -16,8 +16,8 @@ bun-in-browser offers a public WebSocket service that is recommended for most us
 
 - URL: `wss://browser-proxy.web4.near.page`
 - This service allows you to run your bun-in-browser applications without setting up your own server.
-- When you connect to this WebSocket, your application becomes available at a unique subdomain of `web4.near.page`.
-- Example: If your client ID is "abc123", your site would be accessible at `https://abc123.web4.near.page`.
+- When you connect to this WebSocket, your application becomes available at browser-proxy.web4.near.page.
+- Example: If your client ID is "abc123", your site would be accessible at `https://abc123.browser-proxy.web4.near.page`.
 
 Use this public WebSocket service unless you expect heavy load for your application.
 
