@@ -28,5 +28,8 @@
   },
   "peerDependencies": {
     "bun": "^1.0.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }
