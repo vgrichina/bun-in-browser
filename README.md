@@ -10,9 +10,20 @@ bun add bun-in-browser
 
 ## Usage
 
-### Server-side
+### Public WebSocket Service
 
-Start the server using the provided `app.js` script:
+bun-in-browser offers a public WebSocket service that is recommended for most use cases:
+
+- URL: `wss://browser-proxy.web4.near.page`
+- This service allows you to run your bun-in-browser applications without setting up your own server.
+- When you connect to this WebSocket, your application becomes available at a unique subdomain of `web4.near.page`.
+- Example: If your client ID is "abc123", your site would be accessible at `https://abc123.web4.near.page`.
+
+Use this public WebSocket service unless you expect heavy load for your application.
+
+### Self-hosted Server
+
+If you need to run your own server (e.g., for high-load applications), you can do so using the provided `app.js` script:
 
 ```bash
 PORT=3000 BASE_URL=http://localhost:3000 USE_SUBDOMAINS=false bun app.js
@@ -39,9 +50,14 @@ process.on('SIGINT', () => {
 });
 ```
 
-### Demo
+## Demo
 
-To start the demo server:
+A public demo is available to showcase bun-in-browser capabilities:
+
+- URL: [https://outstanding-bee.static.domains](https://outstanding-bee.static.domains)
+- This demo allows you to experiment with both simple and advanced usage directly in your browser.
+
+To run the demo locally:
 
 ```bash
 bun run demo
@@ -49,14 +65,14 @@ bun run demo
 
 After starting the server, navigate to the demo URL provided in the console output (typically http://localhost:3001).
 
-#### Simple Demo
+### Simple Demo
 
 The simple demo ([View Source](demo/simple.html)) demonstrates basic routing and JSON responses. Here's an example of the client-side code:
 
 ```javascript
 import { BunInBrowser } from 'bun-in-browser/client';
 
-const bunInBrowser = new BunInBrowser('ws://localhost:3000');
+const bunInBrowser = new BunInBrowser('wss://browser-proxy.web4.near.page');
 
 const serverModule = {
   fetch(req) {
@@ -74,7 +90,7 @@ const serverModule = {
 bunInBrowser.serverModule = serverModule;
 ```
 
-#### Advanced Demo
+### Advanced Demo
 
 The advanced demo ([View Source](demo/advanced.html)) showcases a more complex application: a guest book. It demonstrates handling different routes, processing form submissions, and generating dynamic HTML responses. Here's an excerpt from the demo:
 
@@ -134,27 +150,13 @@ const bunInBrowser = new BunInBrowser('wss://browser-proxy.web4.near.page', serv
 
 ## API
 
-### Server-side
-
-#### `startReverseProxy(options)`
-
-Starts the reverse proxy server.
-
-- `options.port`: The port for the server (default: 3000)
-- `options.baseUrl`: The base URL for the server (default: 'http://localhost:3000')
-- `options.useSubdomains`: Whether to use subdomains for client identification (default: false)
-
-Returns an object with:
-- `server`: The server instance
-- `stop()`: Function to stop the server
-
 ### Client-side
 
 #### `new BunInBrowser(wsUrl, serverModule)`
 
 Creates a new BunInBrowser instance.
 
-- `wsUrl`: The WebSocket URL to connect to
+- `wsUrl`: The WebSocket URL to connect to (use `wss://browser-proxy.web4.near.page` for the public service)
 - `serverModule`: (Optional) The server module object
 
 #### `bunInBrowser.serverModule`
@@ -178,10 +180,25 @@ The unique identifier for this client.
 
 The URL where this client's server can be accessed.
 
+### Server-side
+
+#### `startReverseProxy(options)`
+
+Starts the reverse proxy server.
+
+- `options.port`: The port for the server (default: 3000)
+- `options.baseUrl`: The base URL for the server (default: 'http://localhost:3000')
+- `options.useSubdomains`: Whether to use subdomains for client identification (default: false)
+
+Returns an object with:
+- `server`: The server instance
+- `stop()`: Function to stop the server
+
 ## Features
 
 - Run Bun.js-style servers in the browser
 - WebSocket-based communication between browser and server
+- Public WebSocket service for easy deployment
 - Support for various HTTP methods (GET, POST, etc.)
 - JSON response handling
 - HTML response generation
