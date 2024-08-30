@@ -60,16 +60,46 @@
     <div id="clientUrl">Client URL: Not available</div>
     <textarea id="editor">
 ({
+  guestBook: [],
   fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === "/") {
-      return new Response("Welcome to Bun.js in the browser!");
+      return new Response(this.renderGuestBook(), {
+        headers: { "Content-Type": "text/html" }
+      });
+    }
+    if (url.pathname === "/sign" && req.method === "POST") {
+      return this.handleSignGuestBook(req);
     }
     if (url.pathname === "/api") {
       return Response.json({ message: "This is a JSON response from Bun.js", clientId: window.clientId, clientUrl: window.clientUrl });
     }
     return new Response("Not Found", { status: 404 });
   },
+  renderGuestBook() {
+    let html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #333;">Welcome to our Guest Book!</h1>
+        <form action='/sign' method='POST' style="margin-bottom: 20px;">
+          <input type='text' name='name' placeholder='Your Name' required style="margin: 5px 0; padding: 5px;">
+          <input type='text' name='message' placeholder='Your Message' required style="margin: 5px 0; padding: 5px;">
+          <button type='submit' style="margin: 5px 0; padding: 5px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Sign Guest Book</button>
+        </form>
+        <h2>Entries:</h2>
+        <ul style="list-style-type: none; padding: 0;">
+          ${this.guestBook.map(entry => `<li style="margin-bottom: 10px;"><strong>${entry.name}</strong>: ${entry.message}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+    return html;
+  },
+  async handleSignGuestBook(req) {
+    const formData = await req.formData();
+    const name = formData.get("name");
+    const message = formData.get("message");
+    this.guestBook.push({ name, message });
+    return new Response("Entry added successfully", { status: 302, headers: { "Location": "/" } });
+  }
 })
     </textarea>
     <button onclick="runCode()">Run Code</button>
