@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bun.js in Browser Demo</title>
+    <script type="importmap">
+    {
+      "imports": {
+        "debug": "https://cdn.skypack.dev/debug"
+      }
+    }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #output {
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bun.js in Browser Demo</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { BunInBrowser } from 'https://cdn.skypack.dev/bun-in-browser/src/client.js';
+
+        let bunInBrowser;
+
+        const serverModule = {
+            fetch(req) {
+                const url = new URL(req.url);
+                if (url.pathname === "/") {
+                    return new Response("Welcome to Bun.js in the browser!");
+                }
+                if (url.pathname === "/api") {
+                    return Response.json({ message: "This is a JSON response from Bun.js" });
+                }
+                return new Response("Not Found", { status: 404 });
+            }
+        };
+
+        async function startServer() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Starting server...<br>';
+
+            try {
+                bunInBrowser = new BunInBrowser('wss://browser-proxy.web4.near.page', serverModule);
+                await bunInBrowser.waitUntilReady();
+
+                output.innerHTML += `Server started<br>`;
+                output.innerHTML += `Client ID: ${bunInBrowser.clientId}<br>`;
+                output.innerHTML += `Client URL: ${bunInBrowser.clientUrl}<br>`;
+                output.innerHTML += `Try visiting these endpoints:<br>`;
+                output.innerHTML += `- <a href="${bunInBrowser.clientUrl}" target="_blank">${bunInBrowser.clientUrl}</a> (Welcome message)<br>`;
+                output.innerHTML += `- <a href="${bunInBrowser.clientUrl}/api" target="_blank">${bunInBrowser.clientUrl}/api</a> (JSON response)<br>`;
+            } catch (error) {
+                console.error(`Error: ${error.message}`);
+                output.innerHTML += `Error: ${error.message}<br>`;
+            }
+        }
+
+        // Start the server immediately when the page loads
+        window.addEventListener('load', startServer);
+    </script>
+</body>
+</html>

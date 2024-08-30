@@ -129,7 +129,7 @@ bun test
 To start the demo server:
 
 ```bash
-bun run serve-demo
+bun run demo
 ```
 
 ## Debugging

@@ -7,7 +7,7 @@
   "scripts": {
     "start": "bun app.js",
     "test": "bun test",
-    "serve-demo": "serve src -p 3001"
+    "demo": "serve demo -p 3001"
   },
   "keywords": ["bun", "browser", "server", "websocket", "reverse-proxy"],
   "author": "Vlad Grichina",

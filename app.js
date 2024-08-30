@@ -18,5 +18,5 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 console.log(`Server started on port ${port}. Base URL: ${baseUrl}`);
-console.log(`Run 'bun run serve-demo' to start demo server on port 3001`);
+console.log(`Run 'bun run demo' to start demo server on port 3001`);
 console.log(`Press Ctrl+C to stop.`);
